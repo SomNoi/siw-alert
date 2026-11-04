@@ -44,6 +44,7 @@ def main():
                 signals=[{k: v for k, v in s.items() if k != 'i'} for s in sigs][-40:], params=P)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     json.dump(data, open(OUT, 'w'), ensure_ascii=False, separators=(',', ':'))
+    os.makedirs(os.path.dirname(STATE), exist_ok=True)
     json.dump(st, open(STATE, 'w'), indent=1)
 
 if __name__ == '__main__': main()
