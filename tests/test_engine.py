@@ -61,3 +61,13 @@ class Units(unittest.TestCase):
         self.assertIn('🔷 SIW ขาย', m); self.assertIn('10:00 ไทย', m); self.assertIn('05:00 MT5', m)
 
 if __name__ == '__main__': unittest.main()
+
+class Status(unittest.TestCase):
+    def test_states(self):
+        from siw import status
+        bars = load(FIX); sigs = detect(bars, include_last=True)
+        s = sigs[-1]; cut = bars[:s['i']+1]
+        st = status(cut, detect(cut, include_last=True), None, cut[-1]['t'] + 400_000)
+        self.assertEqual(st['state'], 'BUY' if s['dir'] == 'B' else 'SELL'); self.assertIn(st['label'], ('ซื้อได้', 'ขายได้'))
+        st = status(bars, sigs, None, bars[-1]['t'] + 10**9); self.assertEqual(st['state'], 'CLOSED')
+        w = status(bars, [], None, bars[-1]['t'] + 400_000); self.assertEqual(w['state'], 'WAIT'); self.assertTrue(w['reasons'])

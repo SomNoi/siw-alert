@@ -20,8 +20,9 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python engine/run.py
-      - name: commit if changed
+      - name: commit (always; signals.json carries generated_at heartbeat)
         run: |
           git config user.name siw-bot; git config user.email siw-bot@users.noreply.github.com
           git add docs/data state
-          if git diff --cached --quiet; then echo "no change"; else git commit -qm "data $(date -u +%FT%TZ)" && git pull --rebase -q && git push -q; fi
+          git commit -qm "data $(date -u +%FT%TZ)" || true
+          for i in 1 2 3; do git pull --rebase -q -X theirs && git push -q && break; sleep 3; done

@@ -1,7 +1,7 @@
 """Fetch -> compute -> write docs/data + state -> push ntfy for new signals. Watch-only."""
 import json, os, sys, time, urllib.request
 sys.path.insert(0, os.path.dirname(__file__))
-from siw import add_emas, detect, message, to_ict, to_srv, P
+from siw import add_emas, detect, message, to_ict, to_srv, P, status, time_exit
 from fetch import fetch, closed_only
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATE = os.path.join(ROOT, 'state', 'state.json'); OUT = os.path.join(ROOT, 'docs', 'data', 'signals.json')
@@ -18,7 +18,8 @@ def notify(topic, text, s):
 
 def main():
     now = int(time.time()*1000)
-    bars = add_emas(closed_only(fetch(500, now), now))
+    allb = fetch(500, now); bars = add_emas(closed_only(allb, now))
+    forming = allb[-1] if allb and allb[-1]['t'] + 300_000 > now else None
     if len(bars) < 80: print('not enough bars'); return
     sigs = detect(bars, include_last=True)
     st = load_state(); topic = os.environ.get('NTFY_TOPIC', '').strip()
@@ -35,8 +36,9 @@ def main():
         if topic and not first_run:
             try: notify(topic, txt, s)
             except Exception as e: print('ntfy error', e)
+    for s in sigs: s['out15'] = time_exit(bars, s, 3); s['out10'] = time_exit(bars, s, 2)
     tail = bars[-150:]
-    data = dict(source='Dukascopy XAU/USD BID M5 (about +$1.5 vs IC Markets)', newest_bar_t=newest,
+    data = dict(generated_at=now, status=status(bars, sigs, forming, now), source='Dukascopy XAU/USD BID M5 (about +$1.5 vs IC Markets)', newest_bar_t=newest,
                 newest_ict=f"{to_ict(newest):%Y-%m-%d %H:%M}", price=bars[-1]['c'], e21=round(bars[-1]['e21'], 3),
                 e55=round(bars[-1]['e55'], 3), trend='BUY' if bars[-1]['e21'] > bars[-1]['e55'] else 'SELL',
                 bars=[[b['t']//1000, round(b['o'],3), round(b['h'],3), round(b['l'],3), round(b['c'],3),

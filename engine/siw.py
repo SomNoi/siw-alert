@@ -93,3 +93,50 @@ def message(s):
             f"แท่งคอนเฟิร์ม: {to_ict(s['t']):%d/%m %H:%M} ไทย | {to_srv(s['t']):%H:%M} MT5\n"
             f"เข้า: {est}{s['entry']:.2f}  SL {s['sl']:.2f}  TP {s['tp']:.2f}\n"
             f"หลัง 15 นาที: trail $3 + กันทุน | Dukascopy BID (~+$1.5 vs IC) | แจ้งเตือนเท่านั้น")
+
+# ---- live status + outcomes (UI) ----
+def time_exit(bars, s, n=3, sl=5.0, cost=0.28):
+    """close at bar n after entry (entry = open of L+1), hard SL checked first. None if not enough bars yet."""
+    i = s['i']; sg = 1 if s['dir'] == 'B' else -1
+    if i + n >= len(bars): return None
+    e = bars[i+1]['o']
+    for j in range(i+1, i+1+n):
+        adv = (e - bars[j]['l']) if sg > 0 else (bars[j]['h'] - e)
+        if adv >= sl: return dict(pnl=round(-sl - cost, 2), how='SL')
+    return dict(pnl=round(sg*(bars[i+n]['c'] - e) - cost, 2), how=f'{5*n}m')
+
+def _why_wait(bars, p):
+    i = len(bars) - 1; L = bars[i]; d = 'B' if L['e21'] > L['e55'] else 'S'
+    k = classify(bars, i, d, p); w = bars[i - p['leg_lookback'] + 1:i + 1]
+    dist = (max(b['h'] for b in w) - L['c']) if d == 'S' else (L['c'] - min(b['l'] for b in w))
+    side = 'ขาย' if d == 'S' else 'ซื้อ'
+    if not k: return [f"เทรนด์{'ขาลง' if d == 'S' else 'ขาขึ้น'} → รอเฉพาะสัญญาณ{side}",
+                      f"แท่งล่าสุดยังไม่มีรูปแบบกลับตัว (พินบาร์ / สตาร์ / กลืนกิน) ฝั่ง{side}"]
+    if dist > p['max_ext']: return [f"มีรูปแบบ {k} แต่ราคาวิ่งไกลจากจุดสุดขา ${dist:.2f} (> ${p['max_ext']:.0f}) — ไม่ไล่ราคา"]
+    return [f"มีรูปแบบ {k} แต่ติดกฎกันสัญญาณซ้ำ ({p['dedupe']} แท่ง)"]
+
+def status(bars, sigs, forming=None, now_ms=None, p=None):
+    """bars: closed bars with EMAs. sigs: detect(bars, include_last=True). forming: current unclosed bar dict or None."""
+    p = dict(P, **(p or {})); L = bars[-1]; newest = L['t']
+    d = 'B' if L['e21'] > L['e55'] else 'S'; slope = L['e55'] - bars[-4]['e55']
+    base = dict(trend=d, trend_th='ขาขึ้น' if d == 'B' else 'ขาลง', e21=round(L['e21'], 2), e55=round(L['e55'], 2),
+                e55_slope=round(slope, 3), gap=round(L['e21'] - L['e55'], 2))
+    if now_ms and now_ms - newest > 40 * 60_000:
+        return dict(base, state='CLOSED', label='ตลาดปิด / ไม่มีข้อมูลใหม่', reasons=[f"แท่งล่าสุด {to_ict(newest):%d/%m %H:%M} ไทย"])
+    if sigs and newest - sigs[-1]['t'] <= 2 * 300_000:
+        s = sigs[-1]; ent = to_ict(s['t'] + 300_000)
+        return dict(base, state='BUY' if s['dir'] == 'B' else 'SELL', label='ซื้อได้' if s['dir'] == 'B' else 'ขายได้',
+                    kind=s['kind'], kind_th=PAT_TH.get(s['kind'], ''), entry=s['entry'], sl=s['sl'], tp=s['tp'],
+                    confirm_ict=f"{to_ict(s['t']):%H:%M}", entry_ict=f"{ent:%H:%M}",
+                    exit_ict=f"{ent + timedelta(minutes=10):%H:%M}–{ent + timedelta(minutes=15):%H:%M}",
+                    bars_ago=(newest - s['t']) // 300_000,
+                    reasons=[f"สัญญาณ {s['kind']} ({PAT_TH.get(s['kind'], '')}) แท่งคอนเฟิร์ม {to_ict(s['t']):%H:%M} ไทย",
+                             "แนะนำปิดตามเวลา 10–15 นาทีหลังเข้า (SL $5 ยังทำงาน)"])
+    if forming:
+        fb = add_emas([dict(b) for b in bars] + [dict(forming)])
+        fs = detect(fb, p, include_last=True, start=len(fb) - 1)
+        if fs and fs[-1]['i'] == len(fb) - 1:
+            f = fs[-1]
+            return dict(base, state='PREP', label='เตรียมตัว', kind=f['kind'], dir=f['dir'],
+                        reasons=[f"แท่งที่ยังไม่ปิดกำลังเป็นรูปแบบ {f['kind']} ฝั่ง{'ซื้อ' if f['dir'] == 'B' else 'ขาย'} — รอแท่งปิด {to_ict(forming['t'] + 300_000):%H:%M}"])
+    return dict(base, state='WAIT', label='รอ', reasons=_why_wait(bars, p))
