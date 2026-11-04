@@ -1,0 +1,95 @@
+"""SIW v2 XAUUSD M5 engine - stdlib-only port of fx-research/siw_v2_20261104/siw.py.
+Bar L = CONFIRM bar; entry = open of L+1. Deterministic, no AI."""
+from datetime import datetime, timedelta, timezone
+
+P = dict(modes='abc', star_body_max=0.40, pin_wick_min=0.50, pin_body_max=0.35, wick_tol=0.30,
+         engulf_tol=0.10, leg_lookback=12, max_ext=10.0, dedupe=3,
+         sl=5.0, tp=20.0, trail_after_min=15, trail=3.0, breakeven=True)
+
+def ema(xs, span):
+    a = 2.0 / (span + 1); out = []; v = None
+    for x in xs:
+        v = x if v is None else a * x + (1 - a) * v
+        out.append(v)
+    return out
+
+def add_emas(bars):
+    c = [b['c'] for b in bars]
+    for b, x, y in zip(bars, ema(c, 21), ema(c, 55)):
+        b['e21'], b['e55'] = x, y
+    return bars
+
+def _shape(b):
+    rng = max(b['h'] - b['l'], 1e-9); top, bot = max(b['o'], b['c']), min(b['o'], b['c'])
+    return abs(b['c'] - b['o']) / rng, (b['h'] - top) / rng, (bot - b['l']) / rng, top, bot
+
+def rej(b, pv, d, p):
+    bp, uw, lw, top, bot = _shape(b); ptop, pbot = max(pv['o'], pv['c']), min(pv['o'], pv['c'])
+    if d == 'S':
+        if uw >= p['pin_wick_min'] and bp <= p['pin_body_max']: return 'PIN'
+        if bp <= p['star_body_max'] and bot >= ptop - p['wick_tol'] and top <= pv['h'] + p['wick_tol'] and pv['h'] > ptop: return 'STAR'
+    else:
+        if lw >= p['pin_wick_min'] and bp <= p['pin_body_max']: return 'PIN'
+        if bp <= p['star_body_max'] and top <= pbot + p['wick_tol'] and bot >= pv['l'] - p['wick_tol'] and pbot > pv['l']: return 'STAR'
+    return None
+
+def engulf(b, pv, d, t):
+    if d == 'S': return b['c'] < b['o'] and pv['c'] > pv['o'] and b['o'] >= pv['c'] - t and b['c'] <= pv['o'] + t
+    return b['c'] > b['o'] and pv['c'] < pv['o'] and b['o'] <= pv['c'] + t and b['c'] >= pv['o'] - t
+
+def classify(bars, i, d, p):
+    L, p1, p2 = bars[i], bars[i-1], bars[i-2]
+    colour = (L['c'] < L['o']) if d == 'S' else (L['c'] > L['o'])
+    if 'a' in p['modes']:
+        k = rej(L, p1, d, p)
+        if k: return 'A_' + k
+    if 'b' in p['modes'] and engulf(L, p1, d, p['engulf_tol']): return 'B_ENGULF'
+    if 'c' in p['modes'] and colour:
+        k = rej(p1, p2, d, p)
+        if k: return 'C_' + k
+    return None
+
+def detect(bars, p=None, include_last=False, start=60):
+    """bars: list of dicts t(ms UTC),o,h,l,c oldest first, with e21/e55. include_last=True lets the
+    newest closed bar be L (live mode; entry then = next bar open, estimated by close(L))."""
+    p = dict(P, **(p or {})); out = []; last = {'S': -99, 'B': -99}
+    end = len(bars) if include_last else len(bars) - 1
+    for i in range(max(start, p['leg_lookback']), end):
+        L = bars[i]; d = 'B' if L['e21'] > L['e55'] else 'S'
+        k = classify(bars, i, d, p)
+        if not k: continue
+        w = bars[i - p['leg_lookback'] + 1:i + 1]
+        dist = (max(b['h'] for b in w) - L['c']) if d == 'S' else (L['c'] - min(b['l'] for b in w))
+        if dist > p['max_ext']: continue
+        if i - last[d] < p['dedupe']: continue
+        last[d] = i
+        nxt = bars[i+1] if i + 1 < len(bars) else None
+        entry = round(nxt['o'] if nxt else L['c'], 2); sg = 1 if d == 'B' else -1
+        out.append(dict(i=i, t=L['t'], dir=d, kind=k, entry=entry, entry_est=nxt is None,
+                        sl=round(entry - sg*p['sl'], 2), tp=round(entry + sg*p['tp'], 2), leg_dist=round(dist, 2)))
+    return out
+
+# ---- time helpers ----
+def _nth_sunday(y, m, n):
+    d = datetime(y, m, 1); d += timedelta(days=(6 - d.weekday()) % 7)
+    return d + timedelta(weeks=n - 1)
+
+def us_dst(utc_dt):
+    """US DST: 2nd Sun Mar 2:00 local -> 1st Sun Nov 2:00 local (approx 7:00/6:00 UTC ET)."""
+    y = utc_dt.year; s = _nth_sunday(y, 3, 2) + timedelta(hours=7); e = _nth_sunday(y, 11, 1) + timedelta(hours=6)
+    return s <= utc_dt.replace(tzinfo=None) < e
+
+def to_ict(t_ms): return datetime.fromtimestamp(t_ms/1000, timezone.utc).replace(tzinfo=None) + timedelta(hours=7)
+def to_srv(t_ms):
+    u = datetime.fromtimestamp(t_ms/1000, timezone.utc).replace(tzinfo=None)
+    return u + timedelta(hours=3 if us_dst(u) else 2)
+
+PAT_TH = {'A_PIN': 'A พินบาร์', 'A_STAR': 'A เนื้อเล็กในไส้', 'B_ENGULF': 'B กลืนกิน', 'C_PIN': 'C พิน+ยืนยันสี', 'C_STAR': 'C สตาร์+ยืนยันสี'}
+
+def message(s):
+    d = 'ขาย (SELL)' if s['dir'] == 'S' else 'ซื้อ (BUY)'
+    est = '≈' if s.get('entry_est') else ''
+    return (f"🔷 SIW {d} {s['kind']} ({PAT_TH.get(s['kind'], '')})\n"
+            f"แท่งคอนเฟิร์ม: {to_ict(s['t']):%d/%m %H:%M} ไทย | {to_srv(s['t']):%H:%M} MT5\n"
+            f"เข้า: {est}{s['entry']:.2f}  SL {s['sl']:.2f}  TP {s['tp']:.2f}\n"
+            f"หลัง 15 นาที: trail $3 + กันทุน | Dukascopy BID (~+$1.5 vs IC) | แจ้งเตือนเท่านั้น")

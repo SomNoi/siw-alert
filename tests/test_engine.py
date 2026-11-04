@@ -1,0 +1,63 @@
+import csv, os, sys, unittest
+from datetime import datetime
+HERE = os.path.dirname(__file__); sys.path.insert(0, os.path.join(HERE, '..', 'engine'))
+from siw import add_emas, detect, us_dst, to_srv, message, P
+from fetch import parse
+FIX = os.path.join(HERE, 'fixtures', 'duka_slice.csv')
+FULL = '/workspace/fx-research/siw_v2_20261104/duka_xau_m5_bid.csv'
+REF = '/workspace/fx-research/siw_v2_20261104'
+
+def load(path):
+    with open(path) as f:
+        return add_emas([dict(t=int(r['t']), o=float(r['o']), h=float(r['h']), l=float(r['l']), c=float(r['c'])) for r in csv.DictReader(f)])
+
+def ref_signals(path, dedupe):
+    import importlib.util as u; sp = u.spec_from_file_location('siw_ref', os.path.join(REF, 'siw.py')); ref = u.module_from_spec(sp); sp.loader.exec_module(ref)
+    df = ref.load(path); s = ref.detect(df, dict(dedupe=dedupe))
+    return [(int(r.i), r.dir, r.kind, round(float(r.entry), 2)) for _, r in s.iterrows()]
+
+class Parity(unittest.TestCase):
+    def check(self, path):
+        bars = load(path)
+        for dd in (1, 3):
+            mine = detect(bars, dict(dedupe=dd)); ref = ref_signals(path, dd)
+            self.assertTrue(mine); self.assertEqual([(s['i'], s['dir'], s['kind']) for s in mine], [r[:3] for r in ref])
+            for s, r in zip(mine, ref): self.assertLessEqual(abs(s['entry'] - r[3]), 0.0101)  # rounding mode only
+    @unittest.skipUnless(os.path.exists(os.path.join(REF, 'siw.py')), 'reference siw.py not present')
+    def test_parity_fixture(self): self.check(FIX)
+    @unittest.skipUnless(os.path.exists(FULL), 'full csv not present')
+    def test_parity_full(self): self.check(FULL)
+
+    def test_parity_frozen(self):
+        """CI-safe: compare against siw.py output frozen in fixtures/ref_siw_py_signals.json"""
+        import json; ref = json.load(open(os.path.join(HERE, 'fixtures', 'ref_siw_py_signals.json'))); bars = load(FIX)
+        for dd in (1, 3):
+            mine = detect(bars, dict(dedupe=dd)); r = ref[str(dd)]
+            self.assertEqual([[s['i'], s['dir'], s['kind']] for s in mine], [x[:3] for x in r])
+            for s, x in zip(mine, r): self.assertLessEqual(abs(s['entry'] - x[3]), 0.0101)
+
+class Units(unittest.TestCase):
+    def test_golden_fixture(self):
+        s = detect(load(FIX)); self.assertGreater(len(s), 5)
+        for x in s:
+            sg = 1 if x['dir'] == 'B' else -1
+            self.assertAlmostEqual(x['tp'] - x['entry'], sg*20, 2); self.assertAlmostEqual(x['entry'] - x['sl'], sg*5, 2)
+            self.assertLessEqual(x['leg_dist'], 10)
+    def test_dedupe(self):
+        s = detect(load(FIX), dict(dedupe=3)); last = {}
+        for x in s:
+            if x['dir'] in last: self.assertGreaterEqual(x['i'] - last[x['dir']], 3)
+            last[x['dir']] = x['i']
+    def test_dst(self):
+        self.assertTrue(us_dst(datetime(2026, 10, 31, 12))); self.assertFalse(us_dst(datetime(2026, 11, 2, 12)))
+        self.assertFalse(us_dst(datetime(2027, 3, 13, 12))); self.assertTrue(us_dst(datetime(2027, 3, 15, 12)))
+        t = int(datetime(2026, 11, 4, 3, 0).timestamp()*1000) if False else 1793761200000  # 2026-11-04 03:00 UTC
+        self.assertEqual(f"{to_srv(t):%H:%M}", '05:00')
+    def test_parse_jsonp(self):
+        b = parse('_cb([[2000,1,2,0.5,1.5,1],[1000,1,2,0.5,1.5,1]]);')
+        self.assertEqual([x['t'] for x in b], [1000, 2000])
+    def test_message(self):
+        m = message(dict(t=1793761200000, dir='S', kind='B_ENGULF', entry=4000.0, sl=4005.0, tp=3980.0))
+        self.assertIn('🔷 SIW ขาย', m); self.assertIn('10:00 ไทย', m); self.assertIn('05:00 MT5', m)
+
+if __name__ == '__main__': unittest.main()

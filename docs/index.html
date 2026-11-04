@@ -1,0 +1,37 @@
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SIW Alert XAUUSD M5</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0b1220">
+<link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes">
+<style>body{margin:0;font-family:system-ui,sans-serif;background:#0b1220;color:#e5e7eb}header{padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+h1{font-size:18px;margin:0}.card{background:#111a2e;margin:8px 10px;border-radius:12px;padding:12px}.price{font-size:32px;font-weight:700}
+.S{color:#ef4444}.B{color:#22c55e}.muted{color:#94a3b8;font-size:12px}#chart{height:340px}table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:6px 4px;border-bottom:1px solid #1f2a44;text-align:left}a.btn{display:block;text-align:center;background:#3b82f6;color:#fff;padding:12px;border-radius:10px;text-decoration:none;margin-top:8px;font-weight:600}</style></head>
+<body><header><h1>🔷 SIW XAUUSD M5</h1><span class="muted" id="upd"></span></header>
+<div class="card"><div class="price" id="price">–</div><div id="trend"></div><div class="muted" id="ema"></div>
+<div class="muted">ข้อมูล: Dukascopy BID (สูงกว่า IC Markets ประมาณ +$1.5) · แจ้งเตือนเท่านั้น ไม่ส่งออเดอร์</div></div>
+<div class="card"><div id="chart"></div><div class="muted">เส้นส้ม EMA21 · เส้นม่วง EMA55 · เวลาไทย (ICT)</div></div>
+<div class="card"><b>สัญญาณล่าสุด</b><table><thead><tr><th>เวลาไทย</th><th>MT5</th><th>ทิศ</th><th>แบบ</th><th>เข้า</th><th>SL</th><th>TP</th></tr></thead><tbody id="sig"></tbody></table></div>
+<div class="card"><b>รับแจ้งเตือนบนมือถือ</b><div class="muted">ติดตั้งแอป ntfy (Android/iOS) แล้วกดปุ่มด้านล่าง หรือ Subscribe หัวข้อ <code>siw-tqltiyequ0ci</code></div>
+<a class="btn" href="https://ntfy.sh/siw-tqltiyequ0ci">📲 Subscribe ntfy</a><a class="btn" style="background:#334155" href="ntfy://ntfy.sh/siw-tqltiyequ0ci">เปิดในแอป ntfy</a>
+<div class="muted" style="margin-top:8px">เพิ่มหน้านี้ไปที่หน้าจอโฮม: Safari → แชร์ → "เพิ่มไปยังหน้าจอโฮม" / Chrome → เมนู → "ติดตั้งแอป"</div>
+<div class="muted">กฎ: EMA21&lt;EMA55 ขายเท่านั้น, &gt; ซื้อเท่านั้น · แท่งคอนเฟิร์ม A/B/C · ขาไม่เกิน $10 · เข้าที่เปิดแท่งถัดไป · SL $5 TP $20 · หลัง 15 นาที trail $3 + กันทุน</div></div>
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+const ICT=7*3600, PAT={A_PIN:'พินบาร์',A_STAR:'เนื้อเล็กในไส้',B_ENGULF:'กลืนกิน',C_PIN:'พิน+สี',C_STAR:'สตาร์+สี'};
+let chart,cs,e21,e55;
+function initChart(){chart=LightweightCharts.createChart(document.getElementById('chart'),{layout:{background:{color:'#111a2e'},textColor:'#cbd5e1'},grid:{vertLines:{color:'#1f2a44'},horzLines:{color:'#1f2a44'}},timeScale:{timeVisible:true,secondsVisible:false},autoSize:true});
+cs=chart.addCandlestickSeries({upColor:'#22c55e',downColor:'#ef4444',wickUpColor:'#22c55e',wickDownColor:'#ef4444',borderVisible:false});
+e21=chart.addLineSeries({color:'#f59e0b',lineWidth:1,priceLineVisible:false});e55=chart.addLineSeries({color:'#a855f7',lineWidth:1,priceLineVisible:false});}
+async function load(){const r=await fetch('data/signals.json?'+Date.now(),{cache:'no-store'});const d=await r.json();
+document.getElementById('price').textContent=d.price.toFixed(2);
+const tr=document.getElementById('trend');tr.className=d.trend==='SELL'?'S':'B';tr.textContent=d.trend==='SELL'?'▼ เทรนด์ขาย (EMA21 < EMA55) — รอเฉพาะขาย':'▲ เทรนด์ซื้อ (EMA21 > EMA55) — รอเฉพาะซื้อ';
+document.getElementById('ema').textContent='EMA21 '+d.e21.toFixed(2)+' · EMA55 '+d.e55.toFixed(2)+' · แท่งล่าสุด '+d.newest_ict+' ไทย';
+document.getElementById('upd').textContent='อัปเดต '+new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+if(!chart)initChart();const t=b=>b[0]+ICT;
+cs.setData(d.bars.map(b=>({time:t(b),open:b[1],high:b[2],low:b[3],close:b[4]})));
+e21.setData(d.bars.map(b=>({time:t(b),value:b[5]})));e55.setData(d.bars.map(b=>({time:t(b),value:b[6]})));
+const first=d.bars[0][0]*1000;
+cs.setMarkers(d.signals.filter(s=>s.t>=first).map(s=>({time:s.t/1000+ICT,position:s.dir==='S'?'aboveBar':'belowBar',color:s.dir==='S'?'#ef4444':'#22c55e',shape:s.dir==='S'?'arrowDown':'arrowUp',text:s.kind})));
+document.getElementById('sig').innerHTML=d.signals.slice().reverse().slice(0,25).map(s=>'<tr><td>'+s.ict.slice(5)+'</td><td>'+s.srv.slice(11)+'</td><td class="'+s.dir+'">'+(s.dir==='S'?'ขาย':'ซื้อ')+'</td><td>'+s.kind+'<br><span class="muted">'+(PAT[s.kind]||'')+'</span></td><td>'+(s.entry_est?'≈':'')+s.entry.toFixed(2)+'</td><td>'+s.sl.toFixed(2)+'</td><td>'+s.tp.toFixed(2)+'</td></tr>').join('');}
+load().catch(e=>document.getElementById('upd').textContent='โหลดข้อมูลไม่ได้');setInterval(()=>load().catch(()=>{}),60000);
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+</script></body></html>
