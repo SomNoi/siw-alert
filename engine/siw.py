@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 P = dict(modes='abc', star_body_max=0.40, pin_wick_min=0.50, pin_body_max=0.35, wick_tol=0.30,
          engulf_tol=0.10, leg_lookback=12, max_ext=10.0, dedupe=3,
-         sl=5.0, tp=20.0, trail_after_min=15, trail=3.0, breakeven=True)
+         sl=10.0, tp=20.0, exit_bars=2, cost=0.28)  # exit v4 (2026-11-04): SL $10, TP $20 cap, close at close of L+2 (10 min)
 
 def ema(xs, span):
     a = 2.0 / (span + 1); out = []; v = None
@@ -92,18 +92,25 @@ def message(s):
     return (f"🔷 SIW {d} {s['kind']} ({PAT_TH.get(s['kind'], '')})\n"
             f"แท่งคอนเฟิร์ม: {to_ict(s['t']):%d/%m %H:%M} ไทย | {to_srv(s['t']):%H:%M} MT5\n"
             f"เข้า: {est}{s['entry']:.2f}  SL {s['sl']:.2f}  TP {s['tp']:.2f}\n"
-            f"หลัง 15 นาที: trail $3 + กันทุน | Dukascopy BID (~+$1.5 vs IC) | แจ้งเตือนเท่านั้น")
+            f"ปิดตามเวลา: {to_ict(s['t'] + 900_000):%H:%M} ไทย | {to_srv(s['t'] + 900_000):%H:%M} MT5 (10 นาทีหลังเข้า, ปิดแท่งที่ 2)\n"
+            f"Exit v4: SL $10 / TP $20 / 10 นาที อะไรถึงก่อน | Dukascopy BID (~+$1.5 vs IC) | แจ้งเตือนเท่านั้น")
 
 # ---- live status + outcomes (UI) ----
-def time_exit(bars, s, n=3, sl=5.0, cost=0.28):
-    """close at bar n after entry (entry = open of L+1), hard SL checked first. None if not enough bars yet."""
-    i = s['i']; sg = 1 if s['dir'] == 'B' else -1
+def outcome_v4(bars, s, p=None):
+    """Exit v4: entry = open of L+1; over bars L+1, L+2: SL (checked first) then TP; else close of L+2.
+    Gap through a level fills at bar open. None if L+2 hasn't closed yet. Mirrors research siw.outcome_v4."""
+    p = dict(P, **(p or {})); i = s['i']; sg = 1 if s['dir'] == 'B' else -1; n = p['exit_bars']
     if i + n >= len(bars): return None
-    e = bars[i+1]['o']
+    e = bars[i+1]['o']; stop = e - sg*p['sl']; tp = e + sg*p['tp']
     for j in range(i+1, i+1+n):
-        adv = (e - bars[j]['l']) if sg > 0 else (bars[j]['h'] - e)
-        if adv >= sl: return dict(pnl=round(-sl - cost, 2), how='SL')
-    return dict(pnl=round(sg*(bars[i+n]['c'] - e) - cost, 2), how=f'{5*n}m')
+        b = bars[j]
+        if (b['l'] <= stop) if sg > 0 else (b['h'] >= stop):
+            x = b['o'] if (j > i+1 and ((b['o'] < stop) if sg > 0 else (b['o'] > stop))) else stop
+            return dict(pnl=round(sg*(x - e) - p['cost'], 2), how='SL')
+        if (b['h'] >= tp) if sg > 0 else (b['l'] <= tp):
+            x = b['o'] if (j > i+1 and ((b['o'] > tp) if sg > 0 else (b['o'] < tp))) else tp
+            return dict(pnl=round(sg*(x - e) - p['cost'], 2), how='TP')
+    return dict(pnl=round(sg*(bars[i+n]['c'] - e) - p['cost'], 2), how='10m')
 
 def _why_wait(bars, p):
     i = len(bars) - 1; L = bars[i]; d = 'B' if L['e21'] > L['e55'] else 'S'
@@ -128,10 +135,11 @@ def status(bars, sigs, forming=None, now_ms=None, p=None):
         return dict(base, state='BUY' if s['dir'] == 'B' else 'SELL', label='ซื้อได้' if s['dir'] == 'B' else 'ขายได้',
                     kind=s['kind'], kind_th=PAT_TH.get(s['kind'], ''), entry=s['entry'], sl=s['sl'], tp=s['tp'],
                     confirm_ict=f"{to_ict(s['t']):%H:%M}", entry_ict=f"{ent:%H:%M}",
-                    exit_ict=f"{ent + timedelta(minutes=10):%H:%M}–{ent + timedelta(minutes=15):%H:%M}",
+                    exit_ict=f"{ent + timedelta(minutes=10):%H:%M}", entry_srv=f"{to_srv(s['t'] + 300_000):%H:%M}",
+                    exit_srv=f"{to_srv(s['t'] + 900_000):%H:%M}", confirm_srv=f"{to_srv(s['t']):%H:%M}",
                     bars_ago=(newest - s['t']) // 300_000,
                     reasons=[f"สัญญาณ {s['kind']} ({PAT_TH.get(s['kind'], '')}) แท่งคอนเฟิร์ม {to_ict(s['t']):%H:%M} ไทย",
-                             "แนะนำปิดตามเวลา 10–15 นาทีหลังเข้า (SL $5 ยังทำงาน)"])
+                             f"Exit v4: SL $10 / TP $20 / ปิดตามเวลา {ent + timedelta(minutes=10):%H:%M} ไทย ({to_srv(s['t'] + 900_000):%H:%M} MT5) อะไรถึงก่อน"])
     if forming:
         fb = add_emas([dict(b) for b in bars] + [dict(forming)])
         fs = detect(fb, p, include_last=True, start=len(fb) - 1)

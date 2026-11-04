@@ -11,10 +11,14 @@
 1. EMA21/EMA55 on M5 closes: EMA21<EMA55 → sells only; > → buys only.
 2. Confirm bar L: **A** pin bar / small body inside prior wick · **B** engulfing in trend direction · **C** prior pin/star + L closes in trend colour.
 3. Leg filter: extreme of last 12 bars → close(L) ≤ $10.
-4. Entry = open of L+1 (alert shows ≈close(L) because L+1 has just opened). SL $5, TP $20; after 15 min trail $3 + breakeven (manual).
+4. Entry = open of L+1 (alert shows ≈close(L) because L+1 has just opened). **Exit v4 (2026-11-04):** SL $10, TP $20 safety cap, close by time at the close of L+2 (10 min after entry), whichever first. Same-bar SL+TP → SL. History outcomes in the app use v4 (`engine/siw.py:outcome_v4`, parity-tested vs research). v4 backtest (in-sample): all SIW 464 trades 52% win +$96.79/0.01; sells 253 55% +$103.30; buys 211 49% −$6.51; his 20 picks 90% +$65.07.
 5. Dedupe: skip same-direction signal within 3 bars of the last one.
 
-Message: `🔷 SIW ขาย/ซื้อ <pattern>`, confirm-bar time in Thai time (ICT) and MT5 server time (ICT−4h during US DST, ICT−5h otherwise), entry, SL, TP.
+Message: `🔷 SIW ขาย/ซื้อ <pattern>`, confirm-bar time in Thai time (ICT) and MT5 server time (ICT−4h during US DST, ICT−5h otherwise), entry, SL, TP, time-exit clock (ICT + MT5).
+
+App: status card รอ / เตรียมตัว / ซื้อได้ / ขายได้ / ตลาดปิด with reasons; history rows tagged pattern A/B/C, side, v4 outcome (ชนะ/แพ้ $); chart markers show pattern letter + v4 $.
+
+`mt5/SIW_Webhook.mq5` — optional EA sketch for a home PC: computes SIW on closed bars and POSTs JSON to a webhook (n8n / Cloudflare Worker / ntfy). Not compiled, never places orders.
 
 ## ติดตั้งบนมือถือ / Install on phone
 1. ติดตั้งแอป **ntfy** (Play Store / App Store) → Subscribe topic `siw-tqltiyequ0ci` (server ntfy.sh) หรือเปิดลิงก์ https://ntfy.sh/siw-tqltiyequ0ci — Install the ntfy app and subscribe to that topic.

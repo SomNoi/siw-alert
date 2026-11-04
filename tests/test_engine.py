@@ -41,7 +41,7 @@ class Units(unittest.TestCase):
         s = detect(load(FIX)); self.assertGreater(len(s), 5)
         for x in s:
             sg = 1 if x['dir'] == 'B' else -1
-            self.assertAlmostEqual(x['tp'] - x['entry'], sg*20, 2); self.assertAlmostEqual(x['entry'] - x['sl'], sg*5, 2)
+            self.assertAlmostEqual(x['tp'] - x['entry'], sg*20, 2); self.assertAlmostEqual(x['entry'] - x['sl'], sg*10, 2)
             self.assertLessEqual(x['leg_dist'], 10)
     def test_dedupe(self):
         s = detect(load(FIX), dict(dedupe=3)); last = {}
@@ -60,7 +60,6 @@ class Units(unittest.TestCase):
         m = message(dict(t=1793761200000, dir='S', kind='B_ENGULF', entry=4000.0, sl=4005.0, tp=3980.0))
         self.assertIn('🔷 SIW ขาย', m); self.assertIn('10:00 ไทย', m); self.assertIn('05:00 MT5', m)
 
-if __name__ == '__main__': unittest.main()
 
 class Status(unittest.TestCase):
     def test_states(self):
@@ -71,3 +70,36 @@ class Status(unittest.TestCase):
         self.assertEqual(st['state'], 'BUY' if s['dir'] == 'B' else 'SELL'); self.assertIn(st['label'], ('ซื้อได้', 'ขายได้'))
         st = status(bars, sigs, None, bars[-1]['t'] + 10**9); self.assertEqual(st['state'], 'CLOSED')
         w = status(bars, [], None, bars[-1]['t'] + 400_000); self.assertEqual(w['state'], 'WAIT'); self.assertTrue(w['reasons'])
+
+class ExitV4(unittest.TestCase):
+    def mk(self, rows):
+        return [dict(t=i*300_000, o=o, h=h, l=l, c=c) for i, (o, h, l, c) in enumerate(rows)]
+    def test_time_exit(self):
+        from siw import outcome_v4
+        b = self.mk([(100,101,99,100), (100,103,98,102), (102,104,101,103), (103,140,60,103)])
+        o = outcome_v4(b, dict(i=0, dir='B')); self.assertEqual(o['how'], '10m'); self.assertAlmostEqual(o['pnl'], 3 - 0.28, 2)
+    def test_sl_first(self):
+        from siw import outcome_v4
+        b = self.mk([(100,101,99,100), (100,121,89,100), (100,100,100,100)])
+        o = outcome_v4(b, dict(i=0, dir='B')); self.assertEqual(o['how'], 'SL'); self.assertAlmostEqual(o['pnl'], -10.28, 2)
+    def test_tp_sell(self):
+        from siw import outcome_v4
+        b = self.mk([(100,101,99,100), (100,101,95,96), (96,97,79,80)])
+        o = outcome_v4(b, dict(i=0, dir='S')); self.assertEqual(o['how'], 'TP'); self.assertAlmostEqual(o['pnl'], 19.72, 2)
+    def test_pending(self):
+        from siw import outcome_v4
+        self.assertIsNone(outcome_v4(self.mk([(1,1,1,1)]*2), dict(i=0, dir='B')))
+    def test_parity_research(self):
+        """matches research siw.outcome_v4 on fixture signals"""
+        try: import pandas as pd
+        except ImportError: self.skipTest('pandas')
+        R = '/workspace/fx-research/siw_v2_20261104'
+        if not os.path.exists(R): self.skipTest('no research dir')
+        import importlib.util as U; sp = U.spec_from_file_location('siw_research', R + '/siw.py'); rs = U.module_from_spec(sp); sp.loader.exec_module(rs)
+        from siw import outcome_v4
+        bars = load(FIX); df = pd.DataFrame(bars)
+        for s in detect(bars)[:60]:
+            o = outcome_v4(bars, s)
+            if o: self.assertAlmostEqual(o['pnl'], round(rs.outcome_v4(df, s['i']+1, s['dir'])[1], 2), 2)
+
+if __name__ == '__main__': unittest.main()

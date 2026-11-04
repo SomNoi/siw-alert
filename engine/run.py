@@ -1,7 +1,7 @@
 """Fetch -> compute -> write docs/data + state -> push ntfy for new signals. Watch-only."""
 import json, os, sys, time, urllib.request
 sys.path.insert(0, os.path.dirname(__file__))
-from siw import add_emas, detect, message, to_ict, to_srv, P, status, time_exit
+from siw import add_emas, detect, message, to_ict, to_srv, P, status, outcome_v4
 from fetch import fetch, closed_only
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATE = os.path.join(ROOT, 'state', 'state.json'); OUT = os.path.join(ROOT, 'docs', 'data', 'signals.json')
@@ -36,7 +36,7 @@ def main():
         if topic and not first_run:
             try: notify(topic, txt, s)
             except Exception as e: print('ntfy error', e)
-    for s in sigs: s['out15'] = time_exit(bars, s, 3); s['out10'] = time_exit(bars, s, 2)
+    for s in sigs: s['out'] = outcome_v4(bars, s)
     tail = bars[-150:]
     data = dict(generated_at=now, status=status(bars, sigs, forming, now), source='Dukascopy XAU/USD BID M5 (about +$1.5 vs IC Markets)', newest_bar_t=newest,
                 newest_ict=f"{to_ict(newest):%Y-%m-%d %H:%M}", price=bars[-1]['c'], e21=round(bars[-1]['e21'], 3),

@@ -35,6 +35,7 @@ h3{margin:0 0 10px;font-size:15px;font-weight:600}
 .row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
 .row:first-of-type{border-top:0}
 .tag{font-weight:700;font-size:12px;border-radius:8px;padding:4px 8px}.tag.B{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}.tag.S{background:color-mix(in srgb,var(--dn) 18%,transparent);color:var(--dn)}
+.pat{display:inline-block;min-width:22px;text-align:center;font-weight:700;font-size:12px;border-radius:7px;padding:2px 6px;background:var(--card2);border:1px solid var(--line);margin-right:6px}.res{font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;margin-left:4px}.res.w{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}.res.l{background:color-mix(in srgb,var(--dn) 18%,transparent);color:var(--dn)}
 .pos{color:var(--up)}.neg{color:var(--dn)}
 #stale{display:none;background:color-mix(in srgb,var(--warn) 15%,var(--card));border-color:color-mix(in srgb,var(--warn) 50%,transparent);color:var(--warn);font-size:14px}
 footer{color:var(--mut);font-size:12px;text-align:center;line-height:1.6}
@@ -47,8 +48,8 @@ footer{color:var(--mut);font-size:12px;text-align:center;line-height:1.6}
 <div style="text-align:right"><div class="sub">แท่งปิดล่าสุด (Dukascopy BID)</div><div class="mono" id="close">—</div></div></div>
 <div class="chips" id="chips"></div></section>
 <section class="card"><h3>กราฟ M5 + EMA21/55</h3><div id="chart"></div></section>
-<section class="card"><h3>ประวัติสัญญาณ (ผลถ้าปิดที่ 15 นาที, SL $5, หักค่าใช้จ่าย $0.28 ต่อ 0.01 ล็อต)</h3><div id="hist"></div></section>
-<footer>แจ้งเตือนเท่านั้น ไม่ใช่คำแนะนำการลงทุน · ข้อมูล Dukascopy BID (ประมาณ +$1.5 จาก IC Markets)<br>ผล backtest เป็น in-sample ข้อมูลประมาณ 1 สัปดาห์</footer>
+<section class="card"><h3>ประวัติสัญญาณ · Exit v4</h3><div class="sub" id="hsum" style="margin:-4px 0 8px">SL $10 / TP $20 / ปิด 10 นาที · $ ต่อ 0.01 ล็อต หักค่าใช้จ่าย $0.28</div><div id="hist"></div></section>
+<footer>แจ้งเตือนเท่านั้น ไม่ใช่คำแนะนำการลงทุน · ข้อมูล Dukascopy BID (ประมาณ +$1.5 จาก IC Markets)<br>ผล backtest เป็น in-sample ข้อมูลประมาณ 1.5 สัปดาห์ · ป้าย A/B/C = รูปแบบ (A พิน/สตาร์ · B กลืนกิน · C แท่งก่อนหน้า+ยืนยันสี)</footer>
 </div><script>
 const $=id=>document.getElementById(id),fmt=(x,d=2)=>x==null?'—':Number(x).toFixed(d);
 const ICT=t=>new Date(t).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',hour:'2-digit',minute:'2-digit',hour12:false});
@@ -68,13 +69,16 @@ function render(d){D=d;const s=d.status||{},col={BUY:'var(--up)',SELL:'var(--dn)
  $('status').style.setProperty('--sc',col);$('st-label').textContent=s.label||'—';
  $('st-sub').textContent={BUY:'สัญญาณใหม่ · ฝั่งซื้อ',SELL:'สัญญาณใหม่ · ฝั่งขาย',PREP:'รูปแบบกำลังก่อตัว (แท่งยังไม่ปิด)',WAIT:'ยังไม่เข้าเงื่อนไข',CLOSED:'ไม่มีแท่งใหม่'}[s.state]||'';
  $('st-reasons').innerHTML=(s.reasons||[]).map(r=>'<li>'+r+'</li>').join('');
- $('st-extra').innerHTML=(s.state=='BUY'||s.state=='SELL')?`<div class="lv"><div><span>เข้า ${s.entry_ict}</span><b class="mono">${fmt(s.entry)}</b></div><div><span>SL</span><b class="mono neg">${fmt(s.sl)}</b></div><div><span>TP</span><b class="mono pos">${fmt(s.tp)}</b></div></div><div class="texit">⏱️ ปิดตามเวลา: <b>${s.exit_ict}</b> ไทย (10–15 นาทีหลังเข้า) · คอนเฟิร์ม ${s.confirm_ict}</div>`:'';
+ $('st-extra').innerHTML=(s.state=='BUY'||s.state=='SELL')?`<div class="lv"><div><span>เข้า ${s.entry_ict}</span><b class="mono">${fmt(s.entry)}</b></div><div><span>SL</span><b class="mono neg">${fmt(s.sl)}</b></div><div><span>TP</span><b class="mono pos">${fmt(s.tp)}</b></div></div><div class="texit">⏱️ ปิดตามเวลา <b>${s.exit_ict}</b> ไทย · <b>${s.exit_srv||''}</b> MT5 (10 นาทีหลังเข้า)<div class="sub">คอนเฟิร์ม ${s.confirm_ict} ไทย / ${s.confirm_srv||''} MT5 · เข้า ${s.entry_ict} / ${s.entry_srv||''} MT5 · SL $10 / TP $20 / เวลา อะไรถึงก่อน</div></div>`:'';
  $('close').textContent=fmt(d.price);const up=s.trend=='B',sl=s.e55_slope||0;
  $('chips').innerHTML=`<span class="chip ${up?'up':'dn'}">เทรนด์ ${s.trend_th||''} · EMA21 ${up?'>':'<'} EMA55</span><span class="chip ${sl>=0?'up':'dn'}">EMA55 ${sl>=0?'↗ ชันขึ้น':'↘ ชันลง'} ${fmt(sl,2)}</span><span class="chip mono">EMA21 ${fmt(s.e21)}</span><span class="chip mono">EMA55 ${fmt(s.e55)}</span><span class="chip">แท่งล่าสุด ${d.newest_ict.slice(11)} ไทย</span>`;
  const b=d.bars;cs.setData(b.map(x=>({time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]})));
  l21.setData(b.map(x=>({time:x[0],value:x[5]})));l55.setData(b.map(x=>({time:x[0],value:x[6]})));
- const t0=b[0][0];cs.setMarkers(d.signals.filter(x=>x.t/1000>=t0).map(x=>({time:x.t/1000,position:x.dir=='B'?'belowBar':'aboveBar',color:x.dir=='B'?'#16c784':'#ea3943',shape:x.dir=='B'?'arrowUp':'arrowDown',text:x.dir=='B'?'ซื้อ':'ขาย'})));
- $('hist').innerHTML=d.signals.slice(-15).reverse().map(x=>{const o=x.out15;return `<div class="row"><span class="tag ${x.dir}">${x.dir=='B'?'ซื้อ':'ขาย'}</span><div><div>${x.ict.slice(5).replace('-','/')} · ${x.kind}</div><div class="sub mono">เข้า ${fmt(x.entry)}</div></div><div class="mono ${o?(o.pnl>0?'pos':'neg'):''}">${o?(o.pnl>0?'+':'')+fmt(o.pnl)+(o.how=='SL'?' SL':''):'รอผล'}</div></div>`}).join('');
+ const t0=b[0][0],PT={A_PIN:'พินบาร์',A_STAR:'เนื้อเล็กในไส้',B_ENGULF:'กลืนกิน',C_PIN:'พิน+ยืนยันสี',C_STAR:'สตาร์+ยืนยันสี'},out=x=>x.out||x.out15;
+ cs.setMarkers(d.signals.filter(x=>x.t/1000>=t0).map(x=>{const o=out(x);return {time:x.t/1000,position:x.dir=='B'?'belowBar':'aboveBar',color:x.dir=='B'?'#16c784':'#ea3943',shape:x.dir=='B'?'arrowUp':'arrowDown',text:x.kind[0]+(o?(o.pnl>0?' +':' ')+o.pnl.toFixed(1):'')}}));
+ const H=d.signals.slice(-20).reverse(),done=H.map(out).filter(Boolean),w=done.filter(o=>o.pnl>0).length,tot=done.reduce((a,o)=>a+o.pnl,0);
+ if(done.length)$('hsum').innerHTML=`${done.length} สัญญาณล่าสุด: ชนะ ${w}/${done.length} · รวม <b class="${tot>0?'pos':'neg'}">${tot>0?'+':''}${fmt(tot)}</b> · SL $10 / TP $20 / ปิด 10 นาที · หักค่าใช้จ่าย $0.28`;
+ $('hist').innerHTML=H.map(x=>{const o=out(x);return `<div class="row"><span class="tag ${x.dir}">${x.dir=='B'?'ซื้อ':'ขาย'}</span><div><div><span class="pat">${x.kind[0]}</span>${PT[x.kind]||x.kind}</div><div class="sub mono">${x.ict.slice(5).replace('-','/')} ไทย · ${x.srv.slice(11)} MT5 · เข้า ${fmt(x.entry)}</div></div><div class="mono ${o?(o.pnl>0?'pos':'neg'):''}" style="text-align:right">${o?(o.pnl>0?'+':'')+fmt(o.pnl):'รอผล'}<div>${o?`<span class="res ${o.pnl>0?'w':'l'}">${o.pnl>0?'ชนะ':'แพ้'} · ${o.how=='10m'?'10 นาที':o.how}</span>`:''}</div></div></div>`}).join('');
  tick();}
 async function load(){const r=await fetch('data/signals.json?t='+Date.now(),{cache:'no-store'});render(await r.json());}
 async function live(){try{const r=await fetch('https://api.gold-api.com/price/XAU',{cache:'no-store'});const j=await r.json();
