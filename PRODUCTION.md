@@ -1,19 +1,23 @@
-# SIW Alert: what "production-grade" still needs
+# SIW Alert: ความพร้อมใช้งานจริงและข้อจำกัด
 
-Today this is a **working prototype**: a free GitHub Actions cron runs the engine, writes a JSON file to GitHub Pages, and pushes ntfy alerts. It's fine for watching signals. It is **not** reliable enough to trade on unattended. Below is the honest gap list, most important first.
+SIW Alert เป็นระบบทดลองสำหรับดูกราฟและรับการแจ้งเตือนตาม SIW v6 / Exit v7 เท่านั้น ไม่ส่งคำสั่งซื้อขาย และไม่ควรใช้แทนการตรวจสอบด้วยตนเอง
 
-| # | Gap | Why it matters now | Fix | Effort | Cost/month | Needs your login/account |
-|---|-----|--------------------|-----|--------|-----------|--------------------------|
-| 1 | **Scheduler** | GitHub cron is best-effort. Runs often start 5–20+ min late, can be skipped under load, and are auto-disabled after 60 days without repo activity. A new workflow's schedule can take a while to start firing at all. A 5-min M5 signal that arrives 15 min late is useless. | A Cloudflare Worker Cron Trigger (every 1 min) that runs the engine (port it to JS) and writes to KV/R2. A cheaper stopgap: an external pinger (cron-job.org) that calls `workflow_dispatch` every 5 min. Most robust: a small VPS with systemd timer. | Worker port 1–2 days. Pinger 30 min. VPS half a day | Worker $0–5. cron-job.org $0. VPS $4–6 | Cloudflare account, or cron-job.org account + a fine-grained GitHub token, or a VPS provider account |
-| 2 | **Data feed = your broker** | Dukascopy BID differs from IC Markets by about $1.5, and its bar timing and wicks differ too. Patterns can appear on one feed and not the other. The free endpoint is unofficial and can break or block without warning. | An MT5 EA on IC Markets (on a VPS or your PC) that computes SIW on real broker bars and POSTs to the backend or straight to push. SIW.mq5 already exists as a starting point. | 1–2 days | MT5 VPS $10–20 (or IC's free VPS if your volume qualifies) | IC Markets MT5 login (investor/read-only password is enough) |
-| 3 | **Push channel** | ntfy on a public topic: anyone who guesses the topic name can read your alerts or spam you. Delivery isn't guaranteed. | LINE Messaging API (an OA you already use) or FCM for a real app. Keep ntfy as a backup channel. | LINE half a day. FCM + app see #4 | LINE free tier (200 msgs) or about ฿1,200 for more. FCM free | LINE Developers channel token / Firebase project |
-| 4 | **Native app** | The PWA works, but iOS web push needs Add to Home Screen, and background refresh is limited. | Capacitor or Expo wrapper around this UI + FCM/APNs | 3–5 days | Apple $99/yr, Google $25 once | Apple Developer + Google Play accounts |
-| 5 | **Auth / privacy** | The Pages site and data are public | Cloudflare Access in front of the site, or move the data behind an authenticated Worker | half a day | $0 (up to 50 users) | Cloudflare account |
-| 6 | **Monitoring** | Nobody finds out when the job dies, data goes stale, or Dukascopy changes format | Healthchecks.io dead-man switch pinged each run. Alert to LINE/ntfy if no heartbeat for 15 min or the feed returns <80 bars. The page already warns at >20 min stale. | 2 h | $0 | healthchecks.io account |
-| 7 | **Backtest validation** | All results so far are **in-sample on about 1 week** (Oct 23 – Nov 4). The out-of-sample split in exit_tuning flipped several "best" settings to losses. | Pull 6–12 months of M5 (Dukascopy history or IC MT5 export). Walk-forward test, with spread/slippage modeled per session. Also forward-test on demo for 2–4 weeks before real money. | 2–3 days + 2–4 weeks of demo | $0 | IC demo account (optional) |
-| 8 | **Tests** | There are parity tests (engine == research) and status tests. Nothing covers the UI, the workflow, or feed-format drift. | Fixture tests for fetch parsing, a golden-file test for signals.json schema, a Playwright smoke test of the page in CI | 1 day | $0 | — |
-| 9 | **Error handling** | A fetch failure means no run output and no alert that anything is wrong. Retries are minimal. | Retry with backoff, a fallback feed, a `status.state=ERROR` written to JSON so the page shows it, and structured logs | half a day | $0 | — |
-| 10 | **Execution (if ever)** | The app is alert-only by design | Only after #2 and #7 are done: an EA with hard risk limits (max lots, daily loss stop, kill switch) | 3–5 days | — | IC Markets trading login. Your explicit decision |
+## ประเด็นที่มีผลต่อการใช้งาน เรียงตามความสำคัญ
 
-**Suggested order:** #1 pinger (today, removes the lag), then #6, then #7, then #2. #3/#5/#4 only if you want it to feel like a real app.
-**Rough total to "solid personal production":** about 1–2 weeks of work and about $15–30/month (MT5 VPS + optional Worker), plus 2–4 weeks of demo forward-testing.
+| ประเด็น | สถานะ/ความเสี่ยง | แนวทางหากต้องการแก้ |
+|---|---|---|
+| **ตารางเวลา** | GitHub Actions ตั้งให้ตรวจทุก 5 นาที แต่ schedule เป็น best-effort และอาจล่าช้าหรือข้ามรอบ ประวัติที่ตรวจวันที่ 2026-11-06 มีช่องว่างหลายชั่วโมง แม้ workflow จะตั้ง cron ทุก 5 นาที สัญญาณที่เลย 15 นาทีจะไม่ถูกส่งเพื่อป้องกันแจ้งเตือนเก่า | ต้องย้ายไป scheduler ที่เชื่อถือได้กว่า เช่น Worker หรือ VPS หรือใช้บริการ pinger; ต้องตกลงสภาพแวดล้อมและบัญชีที่ใช้ก่อนเปลี่ยนระบบ |
+| **ราคา** | สัญญาณคำนวณจาก Dukascopy XAU/USD BID ซึ่งต่างจาก IC Markets ราว +$1.5 และรูปแท่ง/ไส้อาจไม่ตรงกัน ตัวดึงข้อมูล retry หนึ่งครั้ง; หากยัง stale จะแสดงแท่งเก่าพร้อมเตือนและงดส่งสัญญาณ หน้าเว็บไม่สลับแท่งไปใช้ Yahoo GC=F ตาม fallback แบบ levels-only ใน Handbook; ราคาจาก gold-api.com เป็นเพียงราคาอ้างอิงแยกต่างหาก | หากต้องการให้ตรงบัญชีโบรกเกอร์ ต้องเชื่อม feed จากแท่ง MT5 ของบัญชีนั้นโดยตรงและทดสอบก่อน |
+| **การแจ้งเตือน** | ส่งผ่าน ntfy topic สาธารณะโดยอาศัยการเดาชื่อยาก; ไม่มีการรับประกันส่งถึงอุปกรณ์ | ใช้ช่องทางที่ยืนยันตัวตนหรือแอป push ส่วนตัว หากผู้ใช้เลือกและตั้งค่าบัญชี |
+| **ความเป็นส่วนตัว** | GitHub Pages และไฟล์ข้อมูลเป็นสาธารณะ รวมถึงราคาและประวัติสัญญาณที่เผยแพร่ | ย้ายข้อมูลไว้หลังระบบยืนยันตัวตนหรือใช้ปลายทางส่วนตัว |
+| **ผลย้อนหลัง** | R252 ใช้ข้อมูล IC Markets BID ประมาณ 17 เดือน: Exit v7 มี 4,743 รายการ; 631 รายการถูกข้ามเพราะ SL เกิน $8; win rate 39.4%; ค่าเฉลี่ย −$0.42/รายการ หลังต้นทุน $0.28 ต่อ 0.01 lot (IS −$0.33; OOS −$0.61); fixed 0.01 lot ขาดทุนประมาณ $1,990 ในช่วงนั้น และมีช่วงแพ้ติดกันยาวสุด 20 รายการ การทดสอบเปิดได้ทีละรายการ แต่แอปแจ้งเตือนไม่ได้ซ่อนสัญญาณระหว่างสถานะสมมติ | ตัวเลขเป็นผลย้อนหลัง ไม่พิสูจน์ผลในอนาคตหรือ edge และไม่ใช่ผลของทุกการแจ้งเตือน; หากต้องการทำวิจัยเพิ่ม ต้องกำหนดการทดสอบ out-of-sample/forward test แยกจากการแจ้งเตือน |
+| **การตรวจสอบ** | มี unit tests สำหรับกฎ v6, K5/K10, dedupe, เวลา และ Exit v7; ยังไม่มี end-to-end test บนมือถือหรือการรับประกันว่า ntfy ส่งถึงเครื่อง | เพิ่ม smoke test และ dead-man monitoring หลังเลือกช่องทาง/บัญชีที่จะใช้ |
+
+## ขอบเขตของระบบ
+
+- งานที่ทำงานจริงคือ `.github/workflows/siw.yml` → `engine/run.py` → `engine/siw.py` และส่งข้อความผ่าน ntfy เมื่อมีสัญญาณใหม่ที่ยังสด
+- ข้อมูล feed ที่เก่ากว่า 15 นาทีจะไม่สร้างการแจ้งเตือนใหม่; dashboard แสดงสถานะข้อมูลเก่า
+- การแจ้งเตือนเป็นข้อมูลให้ผู้ใช้ตรวจสอบด้วยสายตา ไม่ได้เปิดหรือปิดออเดอร์
+- `mt5/SIW_Webhook.mq5` เป็นสเก็ตช์รุ่นเก่า SIW v2/Exit v4 ซึ่งไม่ได้ใช้ใน pipeline production และไม่สอดคล้องกับกฎ SIW v6/Exit v7 ปัจจุบัน
+
+นี่คือ alert prototype ไม่ใช่ระบบซื้อขายอัตโนมัติหรือระบบเรียลไทม์ที่รับประกันความพร้อมใช้งาน

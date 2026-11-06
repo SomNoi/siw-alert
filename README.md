@@ -1,40 +1,50 @@
-# 🔷 SIW Alert — XAUUSD M5 (Star-in-Wick v2)
+# SIW Alert — XAUUSD M5 · SIW v6 / Exit v7
 
-**ไทย:** แอปแจ้งเตือนสัญญาณ SIW ทองคำ (XAUUSD) กราฟ M5 แบบอัตโนมัติ — โค้ดล้วน ไม่มี AI ไม่มีเอเจนต์ตอนรัน. GitHub Actions ดึงแท่งเทียน Dukascopy ทุก ~5 นาที, คำนวณสัญญาณ, ส่ง push ผ่าน ntfy และอัปเดตหน้าเว็บ (PWA). **แจ้งเตือนเท่านั้น ไม่ส่งออเดอร์.**
+แอปนี้ตรวจกราฟทองคำ XAUUSD M5 ตามกฎ SIW v6 และส่งการแจ้งเตือนภาษาไทยผ่าน ntfy พร้อมแสดงกราฟและประวัติบนหน้าเว็บ GitHub Actions ตั้งใจตรวจทุก 5 นาที แต่เป็นตารางเวลาแบบ best-effort ซึ่งอาจล่าช้าหรือข้ามรอบได้
 
-**English:** Deterministic alert app for the SIW v2 XAUUSD M5 signal. A GitHub Actions cron fetches Dukascopy bars, runs the engine, pushes via ntfy.sh, and updates a GitHub Pages PWA. **Watch-only; never places orders.**
+**แจ้งเตือนและแสดงข้อมูลเท่านั้น — ไม่ส่งคำสั่งซื้อขายหรือเปลี่ยนแปลงออเดอร์**
 
-- Dashboard (PWA): https://somnoi.github.io/siw-alert/
-- Push topic: https://ntfy.sh/siw-tqltiyequ0ci
+- แดชบอร์ด: https://somnoi.github.io/siw-alert/
+- ช่องแจ้งเตือน ntfy: https://ntfy.sh/siw-tqltiyequ0ci
+- กฎอ้างอิงที่ผู้ใช้เลือก: [README_HANDBOOK.md](https://github.com/SomNoi/trading-research/blob/main/fx-research/siw/README_HANDBOOK.md)
 
-## กฎ / Rules (port of `siw_v2_20261104/siw.py`)
-1. EMA21/EMA55 on M5 closes: EMA21<EMA55 → sells only; > → buys only.
-2. Confirm bar L: **A** pin bar / small body inside prior wick · **B** engulfing in trend direction · **C** prior pin/star + L closes in trend colour.
-3. Leg filter: extreme of last 12 bars → close(L) ≤ $10.
-4. Entry = open of L+1 (alert shows ≈close(L) because L+1 has just opened). **Exit v4 (2026-11-04):** SL $10, TP $20 safety cap, close by time at the close of L+2 (10 min after entry), whichever first. Same-bar SL+TP → SL. History outcomes in the app use v4 (`engine/siw.py:outcome_v4`, parity-tested vs research). v4 backtest (in-sample): all SIW 464 trades 52% win +$96.79/0.01; sells 253 55% +$103.30; buys 211 49% −$6.51; his 20 picks 90% +$65.07.
-5. Dedupe: skip same-direction signal within 3 bars of the last one.
+## กฎที่ใช้
 
-Message: `🔷 SIW ขาย/ซื้อ <pattern>`, confirm-bar time in Thai time (ICT) and MT5 server time (ICT−4h during US DST, ICT−5h otherwise), entry, SL, TP, time-exit clock (ICT + MT5).
+1. ใช้ EMA21/EMA55 จากแท่ง M5 ที่ปิดแล้ว: EMA21 > EMA55 ตรวจเฉพาะฝั่งซื้อ; EMA21 < EMA55 ตรวจเฉพาะฝั่งขาย
+2. สำหรับฝั่งซื้อ แท่ง L-1 ต้องเป็นแท่งแดง; ฝั่งขายใช้แท่งเขียวเป็น pullback
+3. แท่งสัญญาณ L ต้องเป็น **PIN** (ไส้ด้านตรงข้ามแนวโน้มอย่างน้อย 50% ของช่วงแท่ง และเนื้อไม่เกิน 40%; สีใดก็ได้) หรือ **ENG** (กลืนเนื้อแท่ง pullback แบบเคร่งครัด ไม่มี tolerance)
+4. ชุด L-1..L ต้องทำจุดต่ำ/สูงใหม่เทียบกับแท่งก่อนชุด: ผ่าน 10 แท่งติดป้าย **K10**; ผ่านเฉพาะ 5 แท่งติดป้าย **K5**; ไม่ผ่าน K5 ไม่มีสัญญาณ
+5. ถ้าฝั่งเดียวกันเกิดสัญญาณบนแท่งติดกัน ให้เก็บสัญญาณแท่งหลังเป็นตัวแทน; หากแท่งแรกส่งแจ้งเตือนไปแล้ว แท่งหลังจะถูกระบุว่าเป็นอัปเดต
+6. Entry ใช้ราคาเปิดของ L+1; SL ใช้จุดต่ำ/สูงสุดของ L-1..L ตามฝั่ง หากระยะจาก entry เกิน $8 หรือราคาเปิด gap ผ่าน SL (หรือระยะไม่เกิน $0.01) ให้ **ข้าม** ไม่ใช่รายการเข้าเทรด; TP $20; หากไม่แตะระดับก่อน ให้ปิดตามราคาปิดของ L+2
 
-App: status card รอ / เตรียมตัว / ซื้อได้ / ขายได้ / ตลาดปิด with reasons; history rows tagged pattern A/B/C, side, v4 outcome (ชนะ/แพ้ $); chart markers show pattern letter + v4 $.
+ถ้ายังอ่านราคาเปิด L+1 ไม่ได้ ระบบจะแสดง entry โดยประมาณจากราคาปิด L และทำเครื่องหมายว่าเป็นค่าประมาณ สัญญาณที่ถูกข้ามจะแจ้งเหตุผลและจะไม่แสดงเป็นรายการเข้าเทรด
 
-`mt5/SIW_Webhook.mq5` — optional EA sketch for a home PC: computes SIW on closed bars and POSTs JSON to a webhook (n8n / Cloudflare Worker / ntfy). Not compiled, never places orders.
+## ผลย้อนหลังและข้อจำกัด
 
-## ติดตั้งบนมือถือ / Install on phone
-1. ติดตั้งแอป **ntfy** (Play Store / App Store) → Subscribe topic `siw-tqltiyequ0ci` (server ntfy.sh) หรือเปิดลิงก์ https://ntfy.sh/siw-tqltiyequ0ci — Install the ntfy app and subscribe to that topic.
-2. เปิด https://somnoi.github.io/siw-alert/ → iPhone Safari: แชร์ → "เพิ่มไปยังหน้าจอโฮม"; Android Chrome: เมนู → "ติดตั้งแอป". — Add the PWA to your home screen.
+ผล R252 จากข้อมูล IC Markets BID ประมาณ 17 เดือน: Exit v7 มี 4,743 รายการ, ข้าม 631 รายการเพราะ SL เกิน $8, อัตราชนะ 39.4% และค่าเฉลี่ย −$0.42 ต่อรายการ (หลังต้นทุน $0.28 ต่อ 0.01 lot); IS −$0.33 และ OOS −$0.61 ต่อรายการ ผลนี้เป็นข้อมูลย้อนหลัง ไม่ยืนยันผลในอนาคต และไม่ได้แสดงว่ากฎมี edge
 
-## โครงสร้าง / Layout
-- `engine/siw.py` stdlib-only engine · `engine/fetch.py` Dukascopy fetch (server-side, needs Referer) · `engine/run.py` cron entry
-- `tests/` unit + parity tests vs `siw.py` (frozen reference output on a 600-bar fixture slice; live parity vs full CSV when the research folder exists)
-- `state/state.json` last alerted signals (prevents duplicates) · `docs/` PWA + `docs/data/signals.json`
-- Topic is stored as repo secret `NTFY_TOPIC`. Change it: `gh secret set NTFY_TOPIC` and update docs/index.html + README.
+ตัวสัญญาณใช้ Dukascopy BID ซึ่งต่างจาก IC Markets โดยประมาณ +$1.5; รูปแท่งและระดับราคาอาจต่างกัน หน้าเว็บราคาสด gold-api.com ใช้ดูอ้างอิงเท่านั้น ไม่ใช้สร้างสัญญาณ งาน GitHub Actions อาจช้าหรือไม่ทำงานตามรอบ ดังนั้นอย่าใช้แอปนี้เป็นระบบเรียลไทม์หรือให้ส่งคำสั่งแทนการตรวจสอบด้วยตนเอง
 
-## ข้อจำกัด / Limitations
-- ผลทดสอบเป็น in-sample (ข้อมูลไม่กี่วัน) — rules were tuned in-sample; not proof of edge.
-- ในการทดสอบ 1 สัปดาห์ ฝั่ง **Buy ขาดทุน** — buys lost in the 1-week test; treat buy alerts with caution.
-- GitHub cron อาจช้า 5–20 นาที หรือข้ามรอบ — GitHub scheduled runs can lag or be skipped; alerts may arrive late. Only signals whose confirm bar is within the last 3 closed bars are pushed.
-- ราคา Dukascopy BID สูงกว่า IC Markets ประมาณ +$1.5 — data offset vs IC; patterns can differ slightly between feeds.
-- EMA warm-up uses only the last 500 bars (negligible vs full history but not bit-identical).
-- The ntfy topic is public-by-obscurity (anyone who knows it can read/post). It contains no secrets.
-- Not financial advice. ไม่ใช่คำแนะนำการลงทุน.
+ntfy topic ที่เชื่อมอยู่เป็น topic สาธารณะโดยอาศัยการเดาชื่อยาก ไม่ใช่ช่องทางส่วนตัวหรือรับประกันการส่งถึงเครื่อง
+
+## วิธีรับการแจ้งเตือน
+
+ติดตั้งแอป ntfy บนมือถือแล้ว Subscribe topic `siw-tqltiyequ0ci` บน `ntfy.sh` จากนั้นเปิดแดชบอร์ดเพื่อดูกราฟและสถานะ หากหน้าเว็บแจ้งว่าข้อมูลเก่า อย่าถือว่าสัญญาณเป็นข้อมูลล่าสุด
+
+## โครงสร้างโค้ด
+
+- `engine/siw.py` — engine SIW v6, Exit v7 และเวลา ICT/MT5
+- `engine/fetch.py` — ดึงแท่ง M5 จาก Dukascopy
+- `engine/run.py` — งานคำนวณ, ntfy และเขียน `docs/data/signals.json`
+- `.github/workflows/siw.yml` — workflow ตรวจตามตารางเวลาและอัปเดตข้อมูลหน้าเว็บ
+- `tests/` — unit tests สำหรับกฎสัญญาณ, dedupe, เวลาตลาด และ Exit v7
+- `state/state.json` — ป้องกันการแจ้งซ้ำ
+- `docs/` — PWA dashboard และข้อมูลที่เผยแพร่
+
+ไฟล์ `mt5/SIW_Webhook.mq5` เป็นเพียงสเก็ตช์ SIW v2/Exit v4 รุ่นเก่า ไม่ใช่ส่วนของแอป production และยังไม่ได้ปรับหรือทดสอบตามกฎปัจจุบัน อย่าใช้ไฟล์นั้นแทน engine นี้
+
+**ไม่ใช่คำแนะนำการลงทุน; ผู้ใช้ตรวจสอบสัญญาณด้วยตนเอง**
+
+ตัวเลข R252 มาจากการจำลองแบบเปิดได้ทีละรายการ; แอปนี้เป็นระบบแจ้งเตือนและไม่ได้ซ่อนสัญญาณเพราะมีสถานะสมมติค้างอยู่ จึงอย่าตีความสถิตินั้นเป็นผลของทุกการแจ้งเตือน
+
+ตัวดึงข้อมูลจะลอง Dukascopy ซ้ำหนึ่งครั้งเมื่อ feed ผิดพลาดหรือเก่า หากยังเก่า หน้าเว็บแสดงแท่ง Dukascopy พร้อมคำเตือนและงดส่งสัญญาณใหม่; ไม่สลับแท่งไปใช้ Yahoo GC=F เพื่อหลีกเลี่ยงการสร้างสัญญาณจาก feed คนละฐาน ส่วนราคาสด gold-api.com เป็นเพียงราคาอ้างอิงแยกต่างหาก

@@ -1,90 +1,66 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8">
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0e14"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg">
-<title>SIW ทองคำ M5</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<meta name="theme-color" content="#0b0e14">
+<meta name="description" content="แดชบอร์ดแจ้งเตือนกราฟทองคำ XAUUSD M5 ตามกฎ SIW v6 และ Exit v7 — แจ้งเตือนเท่านั้น">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<title>SIW ทองคำ M5 · v6 / Exit v7</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root{--bg:#0b0e14;--card:#131722;--card2:#1a1f2e;--line:#232a3b;--tx:#e6e9f0;--mut:#8a93a6;--up:#16c784;--dn:#ea3943;--warn:#f5a524;--acc:#4c8dff}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--tx);font-family:'IBM Plex Sans Thai',system-ui,sans-serif}
-.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
-.wrap{max-width:560px;margin:0 auto;padding:max(12px,env(safe-area-inset-top)) 14px 40px}
-header{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 12px}
-.brand{font-weight:700;font-size:17px;letter-spacing:.2px}.brand small{color:var(--mut);font-weight:500;margin-left:6px}
-.clock{color:var(--mut);font-size:13px;text-align:right;line-height:1.3}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:12px}
-#status{position:relative;overflow:hidden;padding:20px 18px}
-#status::before{content:"";position:absolute;inset:0;opacity:.18;background:radial-gradient(120% 80% at 0% 0%,var(--sc),transparent 60%)}
-#status>*{position:relative}
-.st-top{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:13px}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--sc);box-shadow:0 0 0 4px color-mix(in srgb,var(--sc) 25%,transparent)}
-.st-label{font-size:46px;font-weight:700;line-height:1.1;margin:8px 0 4px;color:var(--sc)}
-.reasons{margin:8px 0 0;padding:0;list-style:none;color:#c8cedb;font-size:14.5px}
-.reasons li{padding:3px 0 3px 18px;position:relative}.reasons li::before{content:"•";position:absolute;left:4px;color:var(--sc)}
-.lv{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
-.lv div{background:var(--card2);border-radius:12px;padding:10px}.lv span{display:block;color:var(--mut);font-size:12px}.lv b{font-size:17px}
-.texit{margin-top:10px;background:var(--card2);border-radius:12px;padding:10px 12px;font-size:14px}
-.price{display:flex;align-items:baseline;justify-content:space-between}
-.px{font-size:34px;font-weight:700}.chg{font-size:14px}.sub{color:var(--mut);font-size:12.5px}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.chip{border:1px solid var(--line);background:var(--card2);border-radius:999px;padding:6px 11px;font-size:13px}
-.chip.up{color:var(--up);border-color:color-mix(in srgb,var(--up) 40%,transparent)}.chip.dn{color:var(--dn);border-color:color-mix(in srgb,var(--dn) 40%,transparent)}
-#chart{height:300px;margin:0 -6px}
-h3{margin:0 0 10px;font-size:15px;font-weight:600}
-.row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
-.row:first-of-type{border-top:0}
-.tag{font-weight:700;font-size:12px;border-radius:8px;padding:4px 8px}.tag.B{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}.tag.S{background:color-mix(in srgb,var(--dn) 18%,transparent);color:var(--dn)}
-.pat{display:inline-block;min-width:22px;text-align:center;font-weight:700;font-size:12px;border-radius:7px;padding:2px 6px;background:var(--card2);border:1px solid var(--line);margin-right:6px}.res{font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;margin-left:4px}.res.w{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}.res.l{background:color-mix(in srgb,var(--dn) 18%,transparent);color:var(--dn)}
-.pos{color:var(--up)}.neg{color:var(--dn)}
-#stale{display:none;background:color-mix(in srgb,var(--warn) 15%,var(--card));border-color:color-mix(in srgb,var(--warn) 50%,transparent);color:var(--warn);font-size:14px}
-footer{color:var(--mut);font-size:12px;text-align:center;line-height:1.6}
-</style></head><body><div class="wrap">
-<header><div class="brand">SIW · XAUUSD <small>M5</small></div><div class="clock"><div class="mono" id="clock">--:--:--</div><div id="upd">กำลังโหลด…</div></div></header>
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}.wrap{max-width:560px;margin:0 auto;padding:max(12px,env(safe-area-inset-top)) 14px 40px}
+header{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 12px}.brand{font-weight:700;font-size:17px;letter-spacing:.2px}.brand small{color:var(--mut);font-weight:500;margin-left:6px}.clock{color:var(--mut);font-size:13px;text-align:right;line-height:1.3}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:12px}#status{position:relative;overflow:hidden;padding:20px 18px}#status::before{content:"";position:absolute;inset:0;opacity:.18;background:radial-gradient(120% 80% at 0% 0%,var(--sc),transparent 60%)}#status>*{position:relative}
+.st-top{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:13px}.dot{width:10px;height:10px;border-radius:50%;background:var(--sc);box-shadow:0 0 0 4px color-mix(in srgb,var(--sc) 25%,transparent)}.st-label{font-size:38px;font-weight:700;line-height:1.2;margin:8px 0 4px;color:var(--sc)}
+.reasons{margin:8px 0 0;padding:0;list-style:none;color:#c8cedb;font-size:14.5px}.reasons li{padding:3px 0 3px 18px;position:relative}.reasons li::before{content:"•";position:absolute;left:4px;color:var(--sc)}
+.lv{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.lv div{background:var(--card2);border-radius:12px;padding:10px}.lv span{display:block;color:var(--mut);font-size:12px}.lv b{font-size:17px}.texit{margin-top:10px;background:var(--card2);border-radius:12px;padding:10px 12px;font-size:14px}
+.price{display:flex;align-items:baseline;justify-content:space-between}.px{font-size:34px;font-weight:700}.sub{color:var(--mut);font-size:12.5px}.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.chip{border:1px solid var(--line);background:var(--card2);border-radius:999px;padding:6px 11px;font-size:13px}.chip.up{color:var(--up);border-color:color-mix(in srgb,var(--up) 40%,transparent)}.chip.dn{color:var(--dn);border-color:color-mix(in srgb,var(--dn) 40%,transparent)}
+#chart{height:300px;margin:0 -6px}h3{margin:0 0 10px;font-size:15px;font-weight:600}.row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:14px}.row:first-of-type{border-top:0}.tag{font-weight:700;font-size:12px;border-radius:8px;padding:4px 8px}.tag.B{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}.tag.S{background:color-mix(in srgb,var(--dn) 18%,transparent);color:var(--dn)}
+.pat{display:inline-block;min-width:36px;text-align:center;font-weight:700;font-size:11px;border-radius:7px;padding:2px 6px;background:var(--card2);border:1px solid var(--line);margin-right:6px}.res{font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;margin-left:4px}.res.w{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}.res.l{background:color-mix(in srgb,var(--dn) 18%,transparent);color:var(--dn)}.res.skip{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}.pos{color:var(--up)}.neg{color:var(--dn)}
+#stale{display:none;background:color-mix(in srgb,var(--warn) 15%,var(--card));border-color:color-mix(in srgb,var(--warn) 50%,transparent);color:var(--warn);font-size:14px}footer{color:var(--mut);font-size:12px;text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><div class="brand">SIW · XAUUSD <small>M5 · v6</small></div><div class="clock"><div class="mono" id="clock">--:--:--</div><div id="upd">กำลังโหลด…</div></div></header>
 <div class="card" id="stale"></div>
-<section class="card" id="status" style="--sc:var(--mut)"><div class="st-top"><span class="dot"></span><span id="st-sub">สถานะตอนนี้</span></div>
-<div class="st-label" id="st-label">…</div><ul class="reasons" id="st-reasons"></ul><div id="st-extra"></div></section>
-<section class="card"><div class="price"><div><div class="sub">ราคาทอง (สด · gold-api.com)</div><div class="px mono" id="live">—</div></div>
-<div style="text-align:right"><div class="sub">แท่งปิดล่าสุด (Dukascopy BID)</div><div class="mono" id="close">—</div></div></div>
-<div class="chips" id="chips"></div></section>
+<section class="card" id="status" style="--sc:var(--mut)"><div class="st-top"><span class="dot"></span><span id="st-sub">สถานะตอนนี้</span></div><div class="st-label" id="st-label">…</div><ul class="reasons" id="st-reasons"></ul><div id="st-extra"></div></section>
+<section class="card"><div class="price"><div><div class="sub">ราคาทองอ้างอิง (gold-api.com)</div><div class="px mono" id="live">—</div></div><div style="text-align:right"><div class="sub">แท่งปิดล่าสุด (Dukascopy BID)</div><div class="mono" id="close">—</div></div></div><div class="chips" id="chips"></div></section>
 <section class="card"><h3>กราฟ M5 + EMA21/55</h3><div id="chart"></div></section>
-<section class="card"><h3>ประวัติสัญญาณ · Exit v4</h3><div class="sub" id="hsum" style="margin:-4px 0 8px">SL $10 / TP $20 / ปิด 10 นาที · $ ต่อ 0.01 ล็อต หักค่าใช้จ่าย $0.28</div><div id="hist"></div></section>
-<footer>แจ้งเตือนเท่านั้น ไม่ใช่คำแนะนำการลงทุน · ข้อมูล Dukascopy BID (ประมาณ +$1.5 จาก IC Markets)<br>ผล backtest เป็น in-sample ข้อมูลประมาณ 1.5 สัปดาห์ · ป้าย A/B/C = รูปแบบ (A พิน/สตาร์ · B กลืนกิน · C แท่งก่อนหน้า+ยืนยันสี)</footer>
-</div><script>
-const $=id=>document.getElementById(id),fmt=(x,d=2)=>x==null?'—':Number(x).toFixed(d);
+<section class="card"><h3>ประวัติสัญญาณ · Exit v7</h3><div class="sub" id="hsum" style="margin:-4px 0 8px">แสดงสัญญาณและสถานะข้ามเท่านั้น · ไม่แสดงผลชนะ/แพ้รายสัญญาณ</div><div id="hist"></div></section>
+<footer>SIW v6 · EMA21/55, pullback, PIN/ENG และ fresh extreme K5/K10 · Exit v7<br>แจ้งเตือนเท่านั้น ไม่ส่งคำสั่งซื้อขาย และไม่ใช่คำแนะนำการลงทุน<br>ข้อมูลสัญญาณจาก Dukascopy BID (ประมาณ +$1.5 จาก IC Markets); ตารางเวลา GitHub อาจล่าช้าหรือข้ามรอบ<br>Backtest R252 ~17 เดือน: 4,743 trades, win 39.4%, −$0.42/trade; ผลย้อนหลังไม่ยืนยันผลในอนาคต</footer>
+</div>
+<script>
+const $=id=>document.getElementById(id),fmt=(x,d=2)=>x==null?'—':Number(x).toFixed(d),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ICT=t=>new Date(t).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',hour:'2-digit',minute:'2-digit',hour12:false});
 let D=null,chart,cs,l21,l55;
-function tick(){const n=new Date();$('clock').textContent=n.toLocaleTimeString('th-TH',{timeZone:'Asia/Bangkok',hour12:false})+' ไทย';
- if(!D)return;const age=(Date.now()-D.generated_at)/60000,bar=(Date.now()-D.newest_bar_t-300000)/60000;
- $('upd').textContent='อัปเดตล่าสุด '+(age<1?'เมื่อสักครู่':Math.floor(age)+' นาทีที่แล้ว');
- const s=$('stale');if(age>20){s.style.display='block';s.textContent='⚠️ ข้อมูลเก่า '+Math.floor(age)+' นาที (ตัวตั้งเวลา GitHub อาจล่าช้า หรือตลาดปิด) — ราคาสดด้านล่างยังอัปเดตอยู่ แต่สัญญาณอาจไม่ล่าสุด';}else s.style.display='none';}
-function initChart(){chart=LightweightCharts.createChart($('chart'),{layout:{background:{color:'transparent'},textColor:'#8a93a6',fontFamily:'IBM Plex Sans Thai'},
- grid:{vertLines:{color:'#1a1f2e'},horzLines:{color:'#1a1f2e'}},rightPriceScale:{borderColor:'#232a3b'},timeScale:{borderColor:'#232a3b',timeVisible:true},
- localization:{timeFormatter:t=>ICT(t*1000)},crosshair:{mode:0}});
- cs=chart.addCandlestickSeries({upColor:'#16c784',downColor:'#ea3943',borderVisible:false,wickUpColor:'#16c784',wickDownColor:'#ea3943'});
- l21=chart.addLineSeries({color:'#f5a524',lineWidth:2,priceLineVisible:false,lastValueVisible:false});
- l55=chart.addLineSeries({color:'#4c8dff',lineWidth:2,priceLineVisible:false,lastValueVisible:false});
- new ResizeObserver(()=>chart.applyOptions({width:$('chart').clientWidth})).observe($('chart'));}
-function render(d){D=d;const s=d.status||{},col={BUY:'var(--up)',SELL:'var(--dn)',PREP:'var(--warn)',WAIT:'var(--mut)',CLOSED:'var(--mut)'}[s.state]||'var(--mut)';
- $('status').style.setProperty('--sc',col);$('st-label').textContent=s.label||'—';
- $('st-sub').textContent={BUY:'สัญญาณใหม่ · ฝั่งซื้อ',SELL:'สัญญาณใหม่ · ฝั่งขาย',PREP:'รูปแบบกำลังก่อตัว (แท่งยังไม่ปิด)',WAIT:'ยังไม่เข้าเงื่อนไข',CLOSED:'ไม่มีแท่งใหม่'}[s.state]||'';
- $('st-reasons').innerHTML=(s.reasons||[]).map(r=>'<li>'+r+'</li>').join('');
- $('st-extra').innerHTML=(s.state=='BUY'||s.state=='SELL')?`<div class="lv"><div><span>เข้า ${s.entry_ict}</span><b class="mono">${fmt(s.entry)}</b></div><div><span>SL</span><b class="mono neg">${fmt(s.sl)}</b></div><div><span>TP</span><b class="mono pos">${fmt(s.tp)}</b></div></div><div class="texit">⏱️ ปิดตามเวลา <b>${s.exit_ict}</b> ไทย · <b>${s.exit_srv||''}</b> MT5 (10 นาทีหลังเข้า)<div class="sub">คอนเฟิร์ม ${s.confirm_ict} ไทย / ${s.confirm_srv||''} MT5 · เข้า ${s.entry_ict} / ${s.entry_srv||''} MT5 · SL $10 / TP $20 / เวลา อะไรถึงก่อน</div></div>`:'';
- $('close').textContent=fmt(d.price);const up=s.trend=='B',sl=s.e55_slope||0;
- $('chips').innerHTML=`<span class="chip ${up?'up':'dn'}">เทรนด์ ${s.trend_th||''} · EMA21 ${up?'>':'<'} EMA55</span><span class="chip ${sl>=0?'up':'dn'}">EMA55 ${sl>=0?'↗ ชันขึ้น':'↘ ชันลง'} ${fmt(sl,2)}</span><span class="chip mono">EMA21 ${fmt(s.e21)}</span><span class="chip mono">EMA55 ${fmt(s.e55)}</span><span class="chip">แท่งล่าสุด ${d.newest_ict.slice(11)} ไทย</span>`;
- const b=d.bars;cs.setData(b.map(x=>({time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]})));
- l21.setData(b.map(x=>({time:x[0],value:x[5]})));l55.setData(b.map(x=>({time:x[0],value:x[6]})));
- const t0=b[0][0],PT={A_PIN:'พินบาร์',A_STAR:'เนื้อเล็กในไส้',B_ENGULF:'กลืนกิน',C_PIN:'พิน+ยืนยันสี',C_STAR:'สตาร์+ยืนยันสี'},out=x=>x.out||x.out15;
- cs.setMarkers(d.signals.filter(x=>x.t/1000>=t0).map(x=>{const o=out(x);return {time:x.t/1000,position:x.dir=='B'?'belowBar':'aboveBar',color:x.dir=='B'?'#16c784':'#ea3943',shape:x.dir=='B'?'arrowUp':'arrowDown',text:x.kind[0]+(o?(o.pnl>0?' +':' ')+o.pnl.toFixed(1):'')}}));
- const H=d.signals.slice(-20).reverse(),done=H.map(out).filter(Boolean),w=done.filter(o=>o.pnl>0).length,tot=done.reduce((a,o)=>a+o.pnl,0);
- if(done.length)$('hsum').innerHTML=`${done.length} สัญญาณล่าสุด: ชนะ ${w}/${done.length} · รวม <b class="${tot>0?'pos':'neg'}">${tot>0?'+':''}${fmt(tot)}</b> · SL $10 / TP $20 / ปิด 10 นาที · หักค่าใช้จ่าย $0.28`;
- $('hist').innerHTML=H.map(x=>{const o=out(x);return `<div class="row"><span class="tag ${x.dir}">${x.dir=='B'?'ซื้อ':'ขาย'}</span><div><div><span class="pat">${x.kind[0]}</span>${PT[x.kind]||x.kind}</div><div class="sub mono">${x.ict.slice(5).replace('-','/')} ไทย · ${x.srv.slice(11)} MT5 · เข้า ${fmt(x.entry)}</div></div><div class="mono ${o?(o.pnl>0?'pos':'neg'):''}" style="text-align:right">${o?(o.pnl>0?'+':'')+fmt(o.pnl):'รอผล'}<div>${o?`<span class="res ${o.pnl>0?'w':'l'}">${o.pnl>0?'ชนะ':'แพ้'} · ${o.how=='10m'?'10 นาที':o.how}</span>`:''}</div></div></div>`}).join('');
- tick();}
-async function load(){const r=await fetch('data/signals.json?t='+Date.now(),{cache:'no-store'});render(await r.json());}
-async function live(){try{const r=await fetch('https://api.gold-api.com/price/XAU',{cache:'no-store'});const j=await r.json();
- $('live').textContent=fmt(j.price);}catch(e){}}
-initChart();load().catch(()=>$('upd').textContent='โหลดข้อมูลไม่ได้');live();
-setInterval(tick,1000);setInterval(()=>load().catch(()=>{}),60000);setInterval(live,15000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){load().catch(()=>{});live()}});
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
-</script></body></html>
+function tick(){const n=new Date();$('clock').textContent=n.toLocaleTimeString('th-TH',{timeZone:'Asia/Bangkok',hour12:false})+' ไทย';if(!D)return;
+ const updateAge=(Date.now()-D.generated_at)/60000,barAge=(Date.now()-(D.newest_bar_t+300000))/60000;
+ $('upd').textContent='อัปเดตล่าสุด '+(updateAge<1?'เมื่อสักครู่':Math.floor(updateAge)+' นาทีที่แล้ว');
+ const stale=$('stale');if(updateAge>20||barAge>15){stale.style.display='block';stale.textContent=`ข้อมูลอาจไม่ล่าสุด: งานประมวลผล ${Math.floor(updateAge)} นาทีที่แล้ว · แท่งปิด ${Math.floor(barAge)} นาทีที่แล้ว — อาจพลาดสัญญาณ`; }else stale.style.display='none';}
+function initChart(){chart=LightweightCharts.createChart($('chart'),{layout:{background:{color:'transparent'},textColor:'#8a93a6',fontFamily:'IBM Plex Sans Thai'},grid:{vertLines:{color:'#1a1f2e'},horzLines:{color:'#1a1f2e'}},rightPriceScale:{borderColor:'#232a3b'},timeScale:{borderColor:'#232a3b',timeVisible:true},localization:{timeFormatter:t=>ICT(t*1000)},crosshair:{mode:0}});
+ cs=chart.addCandlestickSeries({upColor:'#16c784',downColor:'#ea3943',borderVisible:false,wickUpColor:'#16c784',wickDownColor:'#ea3943'});l21=chart.addLineSeries({color:'#f5a524',lineWidth:2,priceLineVisible:false,lastValueVisible:false});l55=chart.addLineSeries({color:'#4c8dff',lineWidth:2,priceLineVisible:false,lastValueVisible:false});new ResizeObserver(()=>chart.applyOptions({width:$('chart').clientWidth})).observe($('chart'));}
+function render(d){D=d;const s=d.status||{},col={BUY:'var(--up)',SELL:'var(--dn)',PREP:'var(--warn)',SKIP:'var(--warn)',STALE:'var(--warn)',WAIT:'var(--mut)',CLOSED:'var(--mut)'}[s.state]||'var(--mut)';
+ $('status').style.setProperty('--sc',col);$('st-label').textContent=s.label||'—';$('st-sub').textContent={BUY:'สัญญาณตามกฎ · ฝั่งซื้อ',SELL:'สัญญาณตามกฎ · ฝั่งขาย',PREP:'รูปแบบกำลังก่อตัว · ยังไม่ยืนยัน',SKIP:'สัญญาณถูกข้าม · ไม่ใช่รายการเข้าเทรด',STALE:'ข้อมูลราคาไม่สด',WAIT:'ยังไม่เข้าเงื่อนไข',CLOSED:'ไม่มีแท่งใหม่'}[s.state]||'';
+ $('st-reasons').innerHTML=(s.reasons||[]).map(r=>'<li>'+esc(r)+'</li>').join('');
+ $('st-extra').innerHTML=(s.state==='BUY'||s.state==='SELL')?`<div class="lv"><div><span>เข้า ${esc(s.entry_ict)}${s.entry_est?' · ประมาณ':''}</span><b class="mono">${s.entry_est?'≈':''}${fmt(s.entry)}</b></div><div><span>SL · โครงสร้าง</span><b class="mono neg">${fmt(s.sl)}</b></div><div><span>TP · $20</span><b class="mono pos">${fmt(s.tp)}</b></div></div><div class="texit">Exit v7 · <b>${esc(s.k_tag||'')}</b> · ปิดที่แท่ง L+2 <b>${esc(s.exit_ict)}</b> ไทย / <b>${esc(s.exit_srv||'')}</b> MT5<div class="sub">ยืนยัน ${esc(s.confirm_ict)} ไทย / ${esc(s.confirm_srv||'')} MT5 · ระยะ SL $${fmt(s.sl_dist)} · หากเกิน $8 หรือ gap ผ่าน SL จะข้าม</div></div>`:'';
+ $('close').textContent=fmt(d.price);const up=s.trend==='B',sl=s.e55_slope||0,trendLabel=s.trend_th||'ไม่ชัด';
+ const down=s.trend==='S',trendClass=up?'up':down?'dn':'',trendOp=up?'>':down?'<':'=';
+ $('chips').innerHTML=`<span class="chip ${trendClass}">เทรนด์ ${esc(trendLabel)} · EMA21 ${trendOp} EMA55</span><span class="chip ${sl>=0?'up':'dn'}">EMA55 ${sl>=0?'↗ ชันขึ้น':'↘ ชันลง'} ${fmt(sl,2)}</span><span class="chip mono">EMA21 ${fmt(s.e21)}</span><span class="chip mono">EMA55 ${fmt(s.e55)}</span><span class="chip">แท่งล่าสุด ${esc((d.newest_ict||'').slice(11))} ไทย</span>`;
+ const b=d.bars||[];if(b.length){cs.setData(b.map(x=>({time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]})));l21.setData(b.map(x=>({time:x[0],value:x[5]})));l55.setData(b.map(x=>({time:x[0],value:x[6]})));const t0=b[0][0];
+ cs.setMarkers((d.signals||[]).filter(x=>x.t/1000>=t0).map(x=>{const skip=Boolean(x.skip);return {time:x.t/1000,position:x.dir==='B'?'belowBar':'aboveBar',color:skip?'#f5a524':x.dir==='B'?'#16c784':'#ea3943',shape:x.dir==='B'?'arrowUp':'arrowDown',text:skip?'ข้าม':`${x.k_tag||''} ${x.kind||''}`}}));}
+ const H=(d.signals||[]).slice(-20).reverse();
+ $('hist').innerHTML=H.map(x=>{const skip=Boolean(x.skip),kind=x.kind==='PIN'?'พินบาร์':'กลืนกิน',result=skip?`<span class="res skip">ข้าม · ${esc(x.skip_reason||'ไม่ผ่าน Exit v7')}</span>`:'<span class="res">ผ่านกฎ Exit v7</span>';return `<div class="row"><span class="tag ${x.dir}">${x.dir==='B'?'ซื้อ':'ขาย'}</span><div><div><span class="pat">${esc(x.k_tag||'')} ${esc(x.kind||'')}</span>${kind}</div><div class="sub mono">${esc((x.ict||'').slice(5).replace('-','/'))} ไทย · ${esc((x.srv||'').slice(11))} MT5 · เข้า ${x.entry_est?'≈':''}${fmt(x.entry)}</div></div><div style="text-align:right">${result}</div></div>`}).join('');tick();}
+ async function load(){const r=await fetch('data/signals.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('data unavailable');render(await r.json());}
+ async function live(){try{const r=await fetch('https://api.gold-api.com/price/XAU',{cache:'no-store'});const j=await r.json();$('live').textContent=fmt(j.price);}catch(e){}}
+ initChart();load().catch(()=>$('upd').textContent='โหลดข้อมูลไม่ได้');live();setInterval(tick,1000);setInterval(()=>load().catch(()=>{}),60000);setInterval(live,15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){load().catch(()=>{});live()}});if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
